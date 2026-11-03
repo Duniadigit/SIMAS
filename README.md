@@ -82,6 +82,3 @@ php artisan migrate --force
 - MySQL InnoDB, `innodb_buffer_pool_size` ± 50–70% RAM jika server khusus.
 - Pencarian perihal memakai `LIKE '%…%'`; nyaman sampai puluhan ribu surat. Bila arsip jauh lebih besar, ganti dengan indeks FULLTEXT.
 - Backup rutin: database **dan** `storage/app/private/` (berisi seluruh PDF).
-
-> Saya belum bisa menguji beban atau menjalankan aplikasi ini: lingkungan saya memblokir Packagist sehingga Laravel tidak
-> bisa dipasang. Jalankan uji beban (mis. k6/ab) pada server Unsil sebelum rilis.
