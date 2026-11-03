@@ -1,59 +1,87 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# SIMAS – Sistem Informasi Manajemen Arsip Surat (Laravel 12)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
 
-## About Laravel
+## 1. Pasang
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+```bash
+composer require setasign/fpdi          # untuk TTD otomatis
+php artisan migrate
+php artisan db:seed                     # jenis surat + akun awal
+npm install && npm run build            # Tailwind 4 (bawaan Laravel 12)
+```
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+`.env` (minimal):
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+```
+APP_NAME=SIMAS
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://alamat-simas.unsil.ac.id      # harus sama persis, dipakai untuk link unduh bertanda tangan
+APP_TIMEZONE=Asia/Jakarta
+APP_LOCALE=id
+DB_CONNECTION=mysql
+DB_DATABASE=...  DB_USERNAME=...  DB_PASSWORD=...
+SESSION_DRIVER=file                           # lihat bagian performa
+CACHE_STORE=file
+SIMAS_SEED_PASSWORD=isi-password-kuat
+SIMAS_NUMBER_FORMAT="{seq}/UN58.HB/{code}/{year}"   # SESUAIKAN dengan tata naskah dinas prodi
+SIMAS_ADMIN_CAN_APPROVE=false
+```
 
-## Learning Laravel
+Akun awal (dari seeder): `admin@simas.test` dan `kaprodi@simas.test`. **Ganti email & password sebelum go-live.**
+Kaprodi login → menu *Profil & TTD* → unggah PNG tanda tangan transparan.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## 2. Peta fitur → dokumen rancangan
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+| Dokumen | Implementasi |
+|---|---|
+| Form pengajuan Mahasiswa/Dosen (tanpa login) | `/ajukan` (honeypot + throttle) |
+| Tracking nomor registrasi / NPM | `/lacak` (throttle, unduh lewat URL bertanda tangan 30 menit) |
+| Alur keluar: Diajukan → Sedang Dibuat → Menunggu Persetujuan → Selesai (+ Revisi/Ditolak) | `OutgoingWorkflow` |
+| Penomoran surat otomatis saat ACC | `LetterNumberService` (counter dikunci, tanpa nomor ganda) |
+| TTD otomatis pada surat ACC | `SignatureStamper` (FPDI) |
+| Surat masuk + scan PDF, disposisi digital Kaprodi, selesai | `IncomingWorkflow` |
+| Statistik bulan ini + reminder | `StatsService` + `panel/dashboard` |
+| Multi-filter arsip (tanggal, kategori, perihal) + cetak laporan | `/panel/arsip`, `/panel/arsip/cetak` |
+| Log aktivitas (siapa, apa, kapan) | tabel `activity_logs`, `/panel/log-aktivitas` |
+| PDF terproteksi | disk `local` (privat, di luar `public/`), hanya lewat controller |
 
-## Laravel Sponsors
+## 3. Catatan penting & keputusan yang perlu Anda konfirmasi
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+1. **Siapa boleh ACC.** Dokumen menulis Admin *dan* Kaprodi bisa ACC, sementara modul verifikasi hanya menyebut Kaprodi.
+   Default: hanya Kaprodi. Set `SIMAS_ADMIN_CAN_APPROVE=true` bila admin juga boleh (TTD tetap TTD Kaprodi aktif).
+2. **Format nomor surat** hanyalah contoh. Sesuaikan `SIMAS_NUMBER_FORMAT`.
+3. **FPDI gratis** hanya membaca PDF tanpa *compressed xref* (PDF ≤ 1.4). Draf dari Word biasanya aman bila diekspor
+   sebagai PDF/A; bila gagal, surat tetap selesai **tanpa TTD** dan alasannya tercatat di log aktivitas.
+   Alternatifnya parser komersial FPDI-PDF-Parser.
+4. **Pelacakan lewat NPM** menampilkan daftar permohonan (perihal & status) siapa pun yang mengetik NPM tersebut. Ini sesuai
+   dokumen, tetapi pertimbangkan privasi; bila perlu, wajibkan nomor registrasi saja.
+5. Fitur di luar dokumen yang saya tambahkan karena perlu: halaman Profil/TTD, status *Revisi* dan *Ditolak*.
+   Belum ada: manajemen akun/jenis surat lewat UI (dilakukan via seeder/tinker), notifikasi email/WhatsApp.
 
-### Premium Partners
+## 4. Performa untuk ratusan–ribuan pengguna
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+Sudah di kode: index pada kolom filter/urut, `select` kolom seperlunya + eager loading (tanpa N+1; lazy loading
+dilarang saat development), paginasi di semua daftar, statistik di-cache dan dibuang saat data berubah,
+status diubah dalam transaksi dengan `lockForUpdate` (tanpa ACC ganda/nomor ganda), tanpa queue/Redis wajib
+(cocok untuk cPanel/VPS).
 
-## Contributing
+Yang harus Anda atur di server:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+composer install --no-dev --optimize-autoloader
+php artisan optimize          # cache config, route, view, event
+php artisan migrate --force
+```
 
-## Code of Conduct
+- **Aktifkan OPcache** (php.ini: `opcache.enable=1`, `opcache.validate_timestamps=0` di production, restart PHP-FPM tiap deploy).
+- `SESSION_DRIVER=file` (atau `redis` bila tersedia). Driver `database` bawaan membuat tiap request menulis ke MySQL.
+- `CACHE_STORE=file` atau `redis`.
+- PHP-FPM: naikkan `pm.max_children` sesuai RAM (± 40–60 MB per proses). `upload_max_filesize=6M`, `post_max_size=8M`.
+- Document root web server harus mengarah ke folder `public/`.
+- MySQL InnoDB, `innodb_buffer_pool_size` ± 50–70% RAM jika server khusus.
+- Pencarian perihal memakai `LIKE '%…%'`; nyaman sampai puluhan ribu surat. Bila arsip jauh lebih besar, ganti dengan indeks FULLTEXT.
+- Backup rutin: database **dan** `storage/app/private/` (berisi seluruh PDF).
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+> Saya belum bisa menguji beban atau menjalankan aplikasi ini: lingkungan saya memblokir Packagist sehingga Laravel tidak
+> bisa dipasang. Jalankan uji beban (mis. k6/ab) pada server Unsil sebelum rilis.

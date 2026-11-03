@@ -1,8 +1,5 @@
 # SIMAS – Sistem Informasi Manajemen Arsip Surat (Laravel 12)
 
-Kode ini adalah **lapisan di atas instalasi Laravel 12 kosong**. Salin isi folder ini ke root project Anda
-(timpa file yang bentrok: `User.php`, `AppServiceProvider.php`, `DatabaseSeeder.php`, `routes/web.php`,
-`resources/css/app.css`, `resources/js/app.js`).
 
 ## 1. Pasang
 
