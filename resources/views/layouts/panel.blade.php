@@ -15,23 +15,24 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Panel') · SIMAS</title>
+    @include('partials.fonts')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
 <div class="min-h-screen lg:flex">
     {{-- Sidebar --}}
-    <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 hidden w-64 shrink-0 flex-col bg-brand-950 text-brand-100 lg:static lg:flex">
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 hidden w-64 shrink-0 flex-col bg-ink-900 text-ink-200 lg:static lg:flex">
         <div class="flex items-center gap-3 px-5 py-5">
-            <span class="grid h-10 w-10 place-items-center rounded-lg bg-gold-500 font-extrabold text-brand-950">S</span>
+            @include('partials.logo')
             <span class="leading-tight">
                 <span class="block font-bold tracking-wide text-white">SIMAS</span>
-                <span class="block text-[11px] text-brand-200">{{ config('simas.program') }}</span>
+                <span class="block text-[11px] text-ink-300">{{ config('simas.program') }}</span>
             </span>
         </div>
         <nav class="flex-1 space-y-1 px-3 py-2">
             @foreach ($nav as [$route, $label, $icon, $pattern])
                 <a href="{{ route($route) }}"
-                   class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {{ request()->routeIs($pattern) ? 'bg-white/10 text-white' : 'hover:bg-white/5' }}">
+                   class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {{ request()->routeIs($pattern) ? 'bg-brand-500 text-ink-900' : 'hover:bg-white/10' }}">
                     <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $icon }}"/></svg>
                     {{ $label }}
                 </a>
@@ -39,7 +40,7 @@
         </nav>
         <div class="border-t border-white/10 p-4">
             <p class="truncate text-sm font-semibold text-white">{{ $user->name }}</p>
-            <p class="text-xs text-brand-200">{{ $user->role->label() }}</p>
+            <p class="text-xs text-ink-300">{{ $user->role->label() }}</p>
             <form method="POST" action="{{ route('logout') }}" class="mt-3">
                 @csrf
                 <button class="w-full rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold hover:bg-white/10">Keluar</button>

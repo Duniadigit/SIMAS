@@ -3,8 +3,8 @@
 @section('heading', 'Arsip & Laporan')
 @section('content')
 <div class="mb-4 inline-flex rounded-lg border border-slate-200 bg-white p-1 text-sm font-medium">
-    <a href="{{ route('panel.archive.index', ['tab' => 'keluar']) }}" class="rounded-md px-4 py-1.5 {{ $tab === 'keluar' ? 'bg-brand-700 text-white' : 'text-slate-600 hover:bg-slate-50' }}">Surat Keluar</a>
-    <a href="{{ route('panel.archive.index', ['tab' => 'masuk']) }}" class="rounded-md px-4 py-1.5 {{ $tab === 'masuk' ? 'bg-brand-700 text-white' : 'text-slate-600 hover:bg-slate-50' }}">Surat Masuk</a>
+    <a href="{{ route('panel.archive.index', ['tab' => 'keluar']) }}" class="rounded-md px-4 py-1.5 {{ $tab === 'keluar' ? 'bg-brand-500 text-ink-900' : 'text-slate-600 hover:bg-slate-50' }}">Surat Keluar</a>
+    <a href="{{ route('panel.archive.index', ['tab' => 'masuk']) }}" class="rounded-md px-4 py-1.5 {{ $tab === 'masuk' ? 'bg-brand-500 text-ink-900' : 'text-slate-600 hover:bg-slate-50' }}">Surat Masuk</a>
 </div>
 
 <form method="GET" class="card card-body mb-4 grid gap-3 md:grid-cols-6">

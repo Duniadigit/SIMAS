@@ -30,7 +30,7 @@
                     <ol class="mt-5 grid grid-cols-4 gap-2">
                         @foreach ($steps as $i => $label)
                             <li>
-                                <div class="h-1.5 rounded-full {{ $i <= $step ? 'bg-brand-600' : 'bg-slate-200' }}"></div>
+                                <div class="h-1.5 rounded-full {{ $i <= $step ? 'bg-brand-500' : 'bg-slate-200' }}"></div>
                                 <p class="mt-1.5 text-[11px] leading-tight {{ $i <= $step ? 'font-semibold text-brand-700' : 'text-slate-400' }}">{{ $label }}</p>
                             </li>
                         @endforeach

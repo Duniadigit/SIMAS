@@ -2,7 +2,9 @@
 
 return [
     'name' => 'SIMAS',
-    'program' => 'Prodi Hukum Bisnis',
+    'program' => 'Jurusan Hukum Bisnis',
+    'faculty' => 'Fakultas Ilmu Sosial dan Ilmu Politik',
+    'address' => env('SIMAS_ADDRESS', 'Gedung Aang Kunaefi, Jalan Siliwangi No. 24, Kahuripan, Kecamatan Tawang, Kota Tasikmalaya, Jawa Barat'),
     'institution' => 'Universitas Siliwangi',
 
     // Format nomor surat. Placeholder: {seq} {code} {year} {month} {roman_month}
@@ -24,10 +26,24 @@ return [
         'margin_bottom_mm' => 25,
     ],
 
+    // Kop & penandatangan pada surat hasil template. SESUAIKAN (nama fakultas, alamat, dll).
+    'letter' => [
+        'city' => env('SIMAS_CITY', 'Tasikmalaya'),
+        'kop' => array_values(array_filter([
+            env('SIMAS_KOP_1', 'UNIVERSITAS SILIWANGI'),
+            env('SIMAS_KOP_2', 'FAKULTAS ILMU SOSIAL DAN ILMU POLITIK'),
+            env('SIMAS_KOP_3', 'JURUSAN HUKUM BISNIS'),
+        ])),
+        'kop_address' => env('SIMAS_KOP_ADDRESS', 'Gedung Aang Kunaefi, Jalan Siliwangi No. 24, Kahuripan, Kecamatan Tawang, Kota Tasikmalaya'), // mis. "Jl. ... Tasikmalaya 46115 | email | website"
+        'logo' => 'images/logo-kop.png',              // relatif terhadap public/ ; opsional
+        'signer_title' => env('SIMAS_SIGNER_TITLE', 'Ketua Jurusan Hukum Bisnis,'),
+        'font_size_pt' => 12,
+    ],
+
     // Saran kategori surat masuk (datalist; tetap bisa diketik bebas).
     'incoming_categories' => [
         'Undangan', 'Edaran', 'Permohonan', 'Pemberitahuan', 'Kerja Sama', 'Lainnya',
     ],
 
-    'seed_password' => env('SIMAS_SEED_PASSWORD', 'password'),
+    'seed_password' => env('SIMAS_SEED_PASSWORD', 'password'), // password default untuk user yang di-seed (admin, kaprodi)
 ];

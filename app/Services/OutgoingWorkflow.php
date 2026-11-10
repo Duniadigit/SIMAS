@@ -15,12 +15,16 @@ use Illuminate\Validation\ValidationException;
 /**
  * Seluruh perpindahan status surat keluar lewat sini: baris dikunci (FOR UPDATE),
  * status divalidasi ulang, perubahan + log aktivitas ditulis dalam satu transaksi.
+ *
+ * Draf punya dua sumber: (1) template (letter_data terisi, PDF dibuat sistem) atau
+ * (2) unggahan PDF admin (letter_data kosong). Keduanya berakhir sebagai draft_path saat diteruskan ke Kaprodi.
  */
 class OutgoingWorkflow
 {
     public function __construct(
         private LetterNumberService $numbers,
         private SignatureStamper $stamper,
+        private LetterRenderer $renderer,
         private StatsService $stats,
     ) {}
 
@@ -35,7 +39,38 @@ class OutgoingWorkflow
         });
     }
 
-    /** Admin mengunggah / mengganti draf PDF. */
+    /**
+     * Admin menyusun surat lewat template (nomor, tujuan, titimangsa, lampiran, redaksi).
+     *
+     * @param  array{title:?string,number:?string,attachment:?string,recipient:?string,subject:string,place:string,date:string,body:string}  $data
+     */
+    public function saveTemplate(OutgoingLetter $letter, array $data, User $user): void
+    {
+        $oldDraft = null;
+
+        $this->transition($letter, [S::SedangDibuat, S::Revisi], $user, 'isi_template', function (OutgoingLetter $l) use ($data, &$oldDraft) {
+            $oldDraft = $l->draft_path;
+            $l->draft_path = null; // PDF dibuat ulang saat diteruskan ke Kaprodi
+            $l->subject = $data['subject'];
+            $l->letter_number = $data['number'] ?: null;
+            $l->letter_date = $data['date'];
+            $l->letter_data = [
+                'title' => trim((string) $data['title']),
+                'attachment' => trim((string) $data['attachment']),
+                'recipient' => trim((string) $data['recipient']),
+                'place' => trim($data['place']),
+                'body' => trim($data['body']),
+            ];
+
+            return 'Menyusun surat dengan template'.($l->letter_number ? ', nomor '.$l->letter_number : '');
+        }, keepStatus: true);
+
+        if ($oldDraft) {
+            Storage::disk('local')->delete($oldDraft);
+        }
+    }
+
+    /** Admin mengunggah / mengganti draf PDF sendiri (menggantikan isian template bila ada). */
     public function uploadDraft(OutgoingLetter $letter, UploadedFile $file, User $user): void
     {
         $new = $file->store('drafts/'.now()->format('Y'), 'local');
@@ -45,8 +80,9 @@ class OutgoingWorkflow
             $this->transition($letter, [S::SedangDibuat, S::Revisi], $user, 'unggah_draf', function (OutgoingLetter $l) use ($new, &$old) {
                 $old = $l->draft_path;
                 $l->draft_path = $new;
+                $l->letter_data = null;
 
-                return 'Mengunggah draf surat';
+                return 'Mengunggah draf surat (PDF)';
             }, keepStatus: true);
         } catch (\Throwable $e) {
             Storage::disk('local')->delete($new);
@@ -58,29 +94,60 @@ class OutgoingWorkflow
         }
     }
 
-    /** Admin meneruskan draf ke Kaprodi. */
+    /** Admin meneruskan draf ke Kaprodi. Surat template dibekukan menjadi PDF pada saat ini. */
     public function submit(OutgoingLetter $letter, User $user): void
     {
-        $this->transition($letter, [S::SedangDibuat, S::Revisi], $user, 'ajukan_persetujuan', function (OutgoingLetter $l) {
-            if (! $l->draft_path) {
-                throw ValidationException::withMessages(['draft' => 'Unggah draf PDF terlebih dahulu.']);
+        $oldDraft = null;
+
+        $this->transition($letter, [S::SedangDibuat, S::Revisi], $user, 'ajukan_persetujuan', function (OutgoingLetter $l) use (&$oldDraft) {
+            if ($l->letter_data) {
+                try {
+                    $pdf = $this->renderer->pdf($l);
+                } catch (\Throwable $e) {
+                    report($e);
+                    throw ValidationException::withMessages(['draft' => 'Gagal membuat PDF dari template: '.$e->getMessage()]);
+                }
+                $oldDraft = $l->draft_path;
+                $l->draft_path = 'drafts/'.now()->format('Y').'/'.Str::random(32).'.pdf';
+                Storage::disk('local')->put($l->draft_path, $pdf);
+            } elseif (! $l->draft_path) {
+                throw ValidationException::withMessages(['draft' => 'Isi surat dengan template atau unggah draf PDF terlebih dahulu.']);
             }
+
             $l->status = S::MenungguPersetujuan;
             $l->review_note = null;
 
             return 'Draf diteruskan ke Kaprodi untuk persetujuan';
         });
+
+        if ($oldDraft) {
+            Storage::disk('local')->delete($oldDraft);
+        }
     }
 
-    /** ACC: beri nomor, bubuhkan TTD, jadikan final. */
+    /** ACC: pastikan bernomor, bubuhkan TTD, jadikan final. */
     public function approve(OutgoingLetter $letter, User $user): void
     {
         $this->transition($letter, [S::MenungguPersetujuan], $user, 'acc', function (OutgoingLetter $l) use ($user) {
             $l->loadMissing('type');
             $disk = Storage::disk('local');
 
-            $l->letter_date = now()->toDateString();
-            $l->letter_number = $this->numbers->next($l->type, now());
+            // Nomor yang diketik admin dipertahankan; bila kosong diterbitkan otomatis (dilewati bila bentrok).
+            if (! $l->letter_number) {
+                for ($i = 0; $i < 20; $i++) {
+                    $candidate = $this->numbers->next($l->type, now());
+                    if (! OutgoingLetter::where('letter_number', $candidate)->exists()) {
+                        $l->letter_number = $candidate;
+                        break;
+                    }
+                }
+                if (! $l->letter_number) {
+                    throw ValidationException::withMessages(['action' => 'Gagal menerbitkan nomor surat otomatis. Isi nomor secara manual.']);
+                }
+            }
+            if (! $l->letter_date) {
+                $l->letter_date = now()->toDateString();
+            }
 
             $signer = $user->isKaprodi()
                 ? $user
@@ -89,21 +156,35 @@ class OutgoingWorkflow
             $final = 'final/'.now()->format('Y').'/'.Str::random(32).'.pdf';
             $disk->makeDirectory(dirname($final));
 
+            $hasSignature = $signer?->signature_path && $disk->exists($signer->signature_path);
             $note = '';
             $stamped = false;
-            if ($signer?->signature_path && $disk->exists($signer->signature_path)) {
-                $stamped = $this->stamper->stamp(
-                    $disk->path($l->draft_path), $disk->path($final), $disk->path($signer->signature_path)
-                );
+
+            if ($l->letter_data) {
+                // Surat template: dibuat ulang dengan nomor final dan TTD tertanam (andal, tanpa FPDI).
+                try {
+                    $disk->put($final, $this->renderer->pdf($l, $signer, true));
+                } catch (\Throwable $e) {
+                    report($e);
+                    throw ValidationException::withMessages(['action' => 'Gagal membuat PDF final: '.$e->getMessage()]);
+                }
+                $stamped = (bool) $hasSignature;
                 if (! $stamped) {
-                    $note = ' (TTD otomatis gagal: '.$this->stamper->lastError.')';
+                    $note = ' (TTD belum dibubuhkan: Kaprodi belum mengunggah TTD)';
                 }
             } else {
-                $note = ' (TTD otomatis dilewati: Kaprodi belum mengunggah TTD)';
-            }
-
-            if (! $stamped) {
-                $disk->copy($l->draft_path, $final);
+                // Draf unggahan: bubuhkan TTD di halaman terakhir lewat FPDI.
+                if ($hasSignature) {
+                    $stamped = $this->stamper->stamp($disk->path($l->draft_path), $disk->path($final), $disk->path($signer->signature_path));
+                    if (! $stamped) {
+                        $note = ' (TTD otomatis gagal: '.$this->stamper->lastError.')';
+                    }
+                } else {
+                    $note = ' (TTD otomatis dilewati: Kaprodi belum mengunggah TTD)';
+                }
+                if (! $stamped) {
+                    $disk->copy($l->draft_path, $final);
+                }
             }
 
             $l->final_path = $final;

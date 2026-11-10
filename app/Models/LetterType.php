@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class LetterType extends Model
 {
-    protected $fillable = ['name', 'code', 'is_active'];
+    protected $fillable = ['name', 'code', 'default_title', 'body_template', 'is_active'];
 
     protected function casts(): array
     {

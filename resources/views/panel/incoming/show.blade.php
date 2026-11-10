@@ -24,8 +24,12 @@
                 <div><dt class="text-slate-500">Tanggal surat</dt><dd class="font-medium">{{ $letter->letter_date->translatedFormat('d F Y') }}</dd></div>
                 <div><dt class="text-slate-500">Diterima</dt><dd class="font-medium">{{ $letter->received_date->translatedFormat('d F Y') }} · dicatat {{ $letter->creator?->name ?? '—' }}</dd></div>
             </dl>
-            <div class="mt-5 flex flex-wrap gap-2">
-                <a class="btn-ghost" target="_blank" href="{{ route('panel.incoming.download', $letter) }}">Buka scan PDF</a>
+            <details class="mt-5 rounded-lg border border-slate-200" open>
+                <summary class="cursor-pointer px-4 py-2 text-sm font-medium text-slate-700">Pratinjau scan surat</summary>
+                <iframe src="{{ route('panel.incoming.download', $letter) }}#view=FitH" title="Scan surat" class="h-[70vh] w-full bg-slate-100"></iframe>
+            </details>
+            <div class="mt-4 flex flex-wrap gap-2">
+                <a class="btn-ghost" target="_blank" href="{{ route('panel.incoming.download', $letter) }}">Buka layar penuh</a>
                 @if ($open && $user->isAdmin())
                     <form method="POST" action="{{ route('panel.incoming.finish', $letter) }}" data-once data-confirm="Tandai surat ini selesai?">@csrf
                         <button class="btn-ghost" type="submit">Tandai selesai</button>

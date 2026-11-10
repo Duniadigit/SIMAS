@@ -37,6 +37,8 @@ Route::prefix('panel')->name('panel.')->middleware(['auth', $staff])->group(func
     // Surat keluar
     Route::get('/surat-keluar', [OutgoingLetterController::class, 'index'])->name('outgoing.index');
     Route::get('/surat-keluar/{letter}', [OutgoingLetterController::class, 'show'])->name('outgoing.show');
+    Route::get('/surat-keluar/{letter}/pratinjau', [OutgoingLetterController::class, 'preview'])->name('outgoing.preview');
+    Route::get('/surat-keluar/{letter}/docx', [OutgoingLetterController::class, 'docx'])->name('outgoing.docx');
     Route::get('/surat-keluar/{letter}/berkas/{kind}', [OutgoingLetterController::class, 'download'])->name('outgoing.download');
     Route::post('/surat-keluar/{letter}/tolak', [OutgoingLetterController::class, 'reject'])->name('outgoing.reject');
     // approve & revise: dicek lagi lewat User::canApprove() (kaprodi, atau admin bila diizinkan di config)
@@ -45,6 +47,7 @@ Route::prefix('panel')->name('panel.')->middleware(['auth', $staff])->group(func
 
     Route::middleware($admin)->group(function () {
         Route::post('/surat-keluar/{letter}/proses', [OutgoingLetterController::class, 'start'])->name('outgoing.start');
+        Route::post('/surat-keluar/{letter}/template', [OutgoingLetterController::class, 'saveTemplate'])->name('outgoing.template');
         Route::post('/surat-keluar/{letter}/draf', [OutgoingLetterController::class, 'uploadDraft'])->name('outgoing.draft');
         Route::post('/surat-keluar/{letter}/ajukan', [OutgoingLetterController::class, 'submit'])->name('outgoing.submit');
 

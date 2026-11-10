@@ -20,6 +20,7 @@ class OutgoingLetter extends Model
             'status' => OutgoingStatus::class,
             'letter_date' => 'date',
             'approved_at' => 'datetime',
+            'letter_data' => 'array',
         ];
     }
 
